@@ -1,57 +1,120 @@
 # NEXUS — Developer Intelligence Platform
 
-NEXUS is an AI-powered developer productivity platform for managing organizations, projects, tasks, collaboration, and intelligent developer workflows from one place.
+**Live Demo:** https://nexus-developer-platform.netlify.app
+
+NEXUS is a full-stack developer intelligence platform for managing organizations, projects, tasks, teams, collaboration, activity, notifications, and AI-powered developer workflows.
 
 ## 🚀 Features
 
-- 🔐 JWT-based authentication
-- 🏢 Organization management
-- 📁 Project management
-- ✅ Task management with Kanban workflow
-- 🏷️ Task labels
-- 🔗 Task dependencies
-- 💬 Task comments
-- 📋 Activity logs
-- 🔔 Notifications
-- 🤖 AI Developer Assistant
-- 📚 RAG-powered developer assistance
-- 🗄️ MySQL database
-- 🌐 React frontend
-- ⚙️ Node.js + Express backend
+* JWT-based authentication
+* Organization management
+* Project management
+* Task creation and tracking
+* Teams and team members
+* Comments and collaboration
+* Labels and task dependencies
+* Activity tracking
+* Notifications
+* AI-powered developer workflows
+* Knowledge/RAG data support
+* Real-time dashboard statistics
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- React.js
-- React Router
-- Axios
-- Vite
+**Frontend**
 
-### Backend
-- Node.js
-- Express.js
-- JWT
-- bcryptjs
-- MySQL2
-- dotenv
-- CORS
+* React.js
+* Vite
+* JavaScript
+* HTML5
+* CSS3
 
-### Database
-- MySQL 8
+**Backend**
 
-### AI
-- Gemini API
-- Retrieval-Augmented Generation (RAG)
+* Node.js
+* Express.js
+* REST APIs
+* JWT authentication
+* bcryptjs
+
+**Database**
+
+* TiDB Cloud
+* MySQL-compatible SQL database
+
+**AI**
+
+* Google Gemini API
+* Gemini embeddings
+* RAG-based knowledge search
+
+**Deployment**
+
+* Netlify
+* Netlify Functions
+* GitHub
 
 ## 🏗️ Architecture
 
 ```text
-React Frontend
-       ↓
-Express REST API
-       ↓
-Authentication / Business Logic
-       ↓
-MySQL Database
-       ↓
-Gemini AI + RAG
+React + Vite
+      ↓
+Netlify
+      ↓
+Express API / Netlify Functions
+      ↓
+TiDB Cloud
+      ↓
+Google Gemini API
+```
+
+## 📊 Current Production Environment
+
+The application is deployed and connected to a cloud database and production AI services.
+
+Production URL:
+
+https://nexus-developer-platform.netlify.app
+
+## 🔐 Authentication
+
+NEXUS uses JWT-based authentication with protected API routes and secure password hashing.
+
+## 🧠 AI Workflow
+
+The AI module uses Google Gemini for developer-focused responses and supports a knowledge-search workflow using embeddings and stored knowledge chunks.
+
+## 📁 Project Structure
+
+```text
+NEXUS/
+├── Backend/
+│   ├── src/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   └── server.js
+│   ├── netlify/
+│   │   └── functions/
+│   └── package.json
+│
+├── Frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+│
+├── database/
+├── netlify.toml
+└── README.md
+```
+
+## 🌐 Deployment
+
+The frontend and Express API are deployed through Netlify, with TiDB Cloud providing the production SQL database.
+
+## 👨‍💻 Author
+
+**Uday Kiran**
+
+B.Tech — Computer Science and Engineering
