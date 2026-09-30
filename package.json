@@ -1,0 +1,16 @@
+{
+  "name": "nexus-netlify",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@google/genai": "^2.24.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.14.4",
+    "openai": "^7.23.0",
+    "serverless-http": "^4.0.0"
+  }
+}
