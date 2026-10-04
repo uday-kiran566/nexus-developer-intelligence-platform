@@ -12,10 +12,26 @@ const createProject = async (req, res) => {
 
         const userId = req.user.userId;
 
-        if (!organization_id || !name) {
+        if (!organization_id || !name || !name.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Organization ID and project name are required"
+            });
+        }
+
+        // Check whether logged-in user belongs to the organization
+        const [members] = await pool.query(
+            `SELECT id
+             FROM organization_members
+             WHERE organization_id = ?
+               AND user_id = ?`,
+            [organization_id, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this organization"
             });
         }
 
@@ -113,18 +129,31 @@ const getProjects = async (req, res) => {
 const getProjectById = async (req, res) => {
     try {
         const { projectId } = req.params;
+        const userId = req.user.userId;
 
         const [projects] = await pool.query(
-            `SELECT *
-             FROM projects
-             WHERE id = ?`,
-            [projectId]
+            `SELECT
+                p.id,
+                p.organization_id,
+                p.team_id,
+                p.name,
+                p.description,
+                p.status,
+                p.created_by,
+                p.created_at,
+                p.updated_at
+             FROM projects p
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE p.id = ?
+               AND pm.user_id = ?`,
+            [projectId, userId]
         );
 
         if (projects.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Project not found"
+                message: "Project not found or access denied"
             });
         }
 
@@ -150,11 +179,28 @@ const updateProject = async (req, res) => {
     try {
         const { projectId } = req.params;
         const { name, description, status } = req.body;
+        const userId = req.user.userId;
 
-        if (!name) {
+        if (!name || !name.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Project name is required"
+            });
+        }
+
+        // Only project members can update
+        const [members] = await pool.query(
+            `SELECT id
+             FROM project_members
+             WHERE project_id = ?
+               AND user_id = ?`,
+            [projectId, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this project"
             });
         }
 
@@ -200,6 +246,23 @@ const updateProject = async (req, res) => {
 const deleteProject = async (req, res) => {
     try {
         const { projectId } = req.params;
+        const userId = req.user.userId;
+
+        // Only project members can delete
+        const [members] = await pool.query(
+            `SELECT id
+             FROM project_members
+             WHERE project_id = ?
+               AND user_id = ?`,
+            [projectId, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this project"
+            });
+        }
 
         const [result] = await pool.query(
             "DELETE FROM projects WHERE id = ?",
@@ -223,8 +286,7 @@ const deleteProject = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to delete project",
-            error: error.message
+            message: "Failed to delete project"
         });
     }
 };

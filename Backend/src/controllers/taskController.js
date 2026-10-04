@@ -1,6 +1,5 @@
 const pool = require("../db");
 
-
 // CREATE TASK
 const createTask = async (req, res) => {
     try {
@@ -14,6 +13,8 @@ const createTask = async (req, res) => {
             due_date
         } = req.body;
 
+        const userId = req.user.userId;
+
         if (!project_id || !title || !title.trim()) {
             return res.status(400).json({
                 success: false,
@@ -21,22 +22,25 @@ const createTask = async (req, res) => {
             });
         }
 
-        // Get organization for activity logging
-        const [projects] = await pool.query(
-            `SELECT organization_id
-             FROM projects
-             WHERE id = ?`,
-            [project_id]
+        // Check whether logged-in user is a member of the project
+        const [members] = await pool.query(
+            `SELECT p.organization_id
+             FROM projects p
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE p.id = ?
+               AND pm.user_id = ?`,
+            [project_id, userId]
         );
 
-        if (projects.length === 0) {
-            return res.status(404).json({
+        if (members.length === 0) {
+            return res.status(403).json({
                 success: false,
-                message: "Project not found"
+                message: "You do not have access to this project"
             });
         }
 
-        const organizationId = projects[0].organization_id;
+        const organizationId = members[0].organization_id;
 
         const taskStatus = status || "TODO";
         const taskPriority = priority || "MEDIUM";
@@ -64,7 +68,7 @@ const createTask = async (req, res) => {
             (user_id, organization_id, project_id, task_id, action, details)
             VALUES (?, ?, ?, ?, ?, ?)`,
             [
-                req.user.userId,
+                userId,
                 organizationId,
                 project_id,
                 taskId,
@@ -106,10 +110,27 @@ const createTask = async (req, res) => {
 };
 
 
-// GET TASKS
+// GET TASKS FOR PROJECT
 const getProjectTasks = async (req, res) => {
     try {
         const { projectId } = req.params;
+        const userId = req.user.userId;
+
+        // Verify project membership
+        const [members] = await pool.query(
+            `SELECT id
+             FROM project_members
+             WHERE project_id = ?
+               AND user_id = ?`,
+            [projectId, userId]
+        );
+
+        if (members.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this project"
+            });
+        }
 
         const [tasks] = await pool.query(
             `SELECT
@@ -163,6 +184,8 @@ const updateTask = async (req, res) => {
             due_date
         } = req.body;
 
+        const userId = req.user.userId;
+
         if (!title || !title.trim()) {
             return res.status(400).json({
                 success: false,
@@ -170,45 +193,34 @@ const updateTask = async (req, res) => {
             });
         }
 
-        // Get existing task
+        // Get task and verify project membership
         const [existingTasks] = await pool.query(
             `SELECT
-                id,
-                project_id,
-                assigned_to,
-                title,
-                status,
-                priority
-             FROM tasks
-             WHERE id = ?`,
-            [taskId]
+                t.id,
+                t.project_id,
+                t.assigned_to,
+                t.title,
+                t.status,
+                t.priority,
+                p.organization_id
+             FROM tasks t
+             INNER JOIN projects p
+                ON t.project_id = p.id
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE t.id = ?
+               AND pm.user_id = ?`,
+            [taskId, userId]
         );
 
         if (existingTasks.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Task not found"
+                message: "Task not found or access denied"
             });
         }
 
         const oldTask = existingTasks[0];
-
-        // Get organization
-        const [projects] = await pool.query(
-            `SELECT organization_id
-             FROM projects
-             WHERE id = ?`,
-            [oldTask.project_id]
-        );
-
-        if (projects.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Project not found"
-            });
-        }
-
-        const organizationId = projects[0].organization_id;
 
         const newStatus = status || "TODO";
         const newPriority = priority || "MEDIUM";
@@ -251,8 +263,8 @@ const updateTask = async (req, res) => {
             (user_id, organization_id, project_id, task_id, action, details)
             VALUES (?, ?, ?, ?, ?, ?)`,
             [
-                req.user.userId,
-                organizationId,
+                userId,
+                oldTask.organization_id,
                 oldTask.project_id,
                 taskId,
                 action,
@@ -261,10 +273,7 @@ const updateTask = async (req, res) => {
         );
 
         // Notify assigned user when task status changes
-        if (
-            assigned_to &&
-            oldTask.status !== newStatus
-        ) {
+        if (assigned_to && oldTask.status !== newStatus) {
             await pool.query(
                 `INSERT INTO notifications
                 (user_id, type, title, message)
@@ -299,44 +308,34 @@ const updateTask = async (req, res) => {
 const deleteTask = async (req, res) => {
     try {
         const { taskId } = req.params;
+        const userId = req.user.userId;
 
-        // Get task before deleting it
+        // Get task and verify project membership
         const [tasks] = await pool.query(
             `SELECT
-                id,
-                project_id,
-                title,
-                assigned_to
-             FROM tasks
-             WHERE id = ?`,
-            [taskId]
+                t.id,
+                t.project_id,
+                t.title,
+                t.assigned_to,
+                p.organization_id
+             FROM tasks t
+             INNER JOIN projects p
+                ON t.project_id = p.id
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE t.id = ?
+               AND pm.user_id = ?`,
+            [taskId, userId]
         );
 
         if (tasks.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Task not found"
+                message: "Task not found or access denied"
             });
         }
 
         const task = tasks[0];
-
-        // Get organization
-        const [projects] = await pool.query(
-            `SELECT organization_id
-             FROM projects
-             WHERE id = ?`,
-            [task.project_id]
-        );
-
-        if (projects.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Project not found"
-            });
-        }
-
-        const organizationId = projects[0].organization_id;
 
         // Delete task
         await pool.query(
@@ -350,8 +349,8 @@ const deleteTask = async (req, res) => {
             (user_id, organization_id, project_id, task_id, action, details)
             VALUES (?, ?, ?, ?, ?, ?)`,
             [
-                req.user.userId,
-                organizationId,
+                userId,
+                task.organization_id,
                 task.project_id,
                 taskId,
                 "TASK_DELETED",
@@ -369,8 +368,7 @@ const deleteTask = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to delete task",
-            error: error.message
+            message: "Failed to delete task"
         });
     }
 };
