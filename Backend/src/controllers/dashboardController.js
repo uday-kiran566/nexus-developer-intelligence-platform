@@ -5,9 +5,8 @@ const getDashboard = async (req, res) => {
         const userId = req.user.userId;
 
         // Total users
-        const [users] = await pool.query(
-            `SELECT COUNT(*) AS total
-             FROM users`
+        // Only the logged-in user
+        // const users = [{ total: 1 }];
         );
 
         // Organizations belonging to logged-in user
