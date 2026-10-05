@@ -4,10 +4,8 @@ const getDashboard = async (req, res) => {
     try {
         const userId = req.user.userId;
 
-        // Total users
         // Only the logged-in user
-        // const users = [{ total: 1 }];
-        );
+        const totalUsers = 1;
 
         // Organizations belonging to logged-in user
         const [organizations] = await pool.query(
@@ -60,7 +58,7 @@ const getDashboard = async (req, res) => {
         res.json({
             success: true,
             dashboard: {
-                totalUsers: users[0].total,
+                totalUsers: totalUsers,
                 totalOrganizations: organizations[0].total,
                 totalProjects: projects[0].total,
                 totalTasks: tasks[0].total,
