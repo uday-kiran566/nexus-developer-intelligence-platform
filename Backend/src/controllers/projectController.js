@@ -19,7 +19,7 @@ const createProject = async (req, res) => {
             });
         }
 
-        // Check whether logged-in user belongs to the organization
+        // Check organization membership
         const [members] = await pool.query(
             `SELECT id
              FROM organization_members
@@ -35,7 +35,6 @@ const createProject = async (req, res) => {
             });
         }
 
-        // Create project
         const [result] = await pool.query(
             `INSERT INTO projects
             (organization_id, name, description, status, created_by)
@@ -49,7 +48,7 @@ const createProject = async (req, res) => {
             ]
         );
 
-        // Automatically add creator as project manager
+        // Creator becomes project manager
         await pool.query(
             `INSERT INTO project_members
             (project_id, user_id, role)
@@ -77,6 +76,47 @@ const createProject = async (req, res) => {
             success: false,
             message: "Failed to create project",
             error: error.message
+        });
+    }
+};
+
+
+// GET ALL PROJECTS ACCESSIBLE TO LOGGED-IN USER
+const getMyProjects = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        const [projects] = await pool.query(
+            `SELECT
+                p.id,
+                p.organization_id,
+                p.team_id,
+                p.name,
+                p.description,
+                p.status,
+                p.created_by,
+                p.created_at,
+                p.updated_at,
+                pm.role
+             FROM projects p
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE pm.user_id = ?
+             ORDER BY p.created_at DESC`,
+            [userId]
+        );
+
+        res.json({
+            success: true,
+            projects
+        });
+
+    } catch (error) {
+        console.error("GET MY PROJECTS ERROR:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch your projects"
         });
     }
 };
@@ -118,8 +158,7 @@ const getProjects = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to fetch projects",
-            error: error.message
+            message: "Failed to fetch projects"
         });
     }
 };
@@ -167,8 +206,7 @@ const getProjectById = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to fetch project",
-            error: error.message
+            message: "Failed to fetch project"
         });
     }
 };
@@ -188,7 +226,6 @@ const updateProject = async (req, res) => {
             });
         }
 
-        // Only project members can update
         const [members] = await pool.query(
             `SELECT id
              FROM project_members
@@ -235,8 +272,7 @@ const updateProject = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to update project",
-            error: error.message
+            message: "Failed to update project"
         });
     }
 };
@@ -248,7 +284,6 @@ const deleteProject = async (req, res) => {
         const { projectId } = req.params;
         const userId = req.user.userId;
 
-        // Only project members can delete
         const [members] = await pool.query(
             `SELECT id
              FROM project_members
@@ -294,6 +329,7 @@ const deleteProject = async (req, res) => {
 
 module.exports = {
     createProject,
+    getMyProjects,
     getProjects,
     getProjectById,
     updateProject,
