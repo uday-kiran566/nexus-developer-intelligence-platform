@@ -21,7 +21,7 @@ function AI() {
                 setError("");
 
                 const response = await axios.get(
-                    `${import.meta.env.VITE_API_URL}/projects`,
+                    `${import.meta.env.VITE_API_URL}/projects/my`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`
