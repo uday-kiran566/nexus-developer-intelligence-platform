@@ -102,8 +102,7 @@ Rules:
 
         res.status(500).json({
             success: false,
-            message: "AI request failed",
-            error: error.message
+            message: "AI request failed"
         });
     }
 };
@@ -156,8 +155,7 @@ const indexProjectData = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to index project",
-            error: error.message
+            message: "Failed to index project"
         });
     }
 };

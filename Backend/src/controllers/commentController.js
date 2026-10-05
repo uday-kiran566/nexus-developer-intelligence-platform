@@ -4,35 +4,40 @@ const addComment = async (req, res) => {
     try {
         const { task_id, content } = req.body;
 
-        if (!task_id || !content || !content.trim()) {
+        if (!task_id || typeof content !== "string" || !content.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Task ID and comment are required"
             });
         }
 
-        // Get task/project/organization information
-        const [tasks] = await pool.query(
+        const userId = req.user.userId;
+
+        const [authorizedTasks] = await pool.query(
             `SELECT
                 t.id,
                 t.project_id,
                 t.title,
+                t.assigned_to,
                 p.organization_id
              FROM tasks t
              JOIN projects p
                 ON t.project_id = p.id
-             WHERE t.id = ?`,
-            [task_id]
+             JOIN project_members pm
+                ON pm.project_id = p.id
+             WHERE t.id = ?
+               AND pm.user_id = ?`,
+            [task_id, userId]
         );
 
-        if (tasks.length === 0) {
+        if (authorizedTasks.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Task not found"
+                message: "Task not found or access denied"
             });
         }
 
-        const task = tasks[0];
+        const task = authorizedTasks[0];
 
         const [result] = await pool.query(
             `INSERT INTO comments
@@ -40,7 +45,7 @@ const addComment = async (req, res) => {
             VALUES (?, ?, ?)`,
             [
                 task_id,
-                req.user.userId,
+                userId,
                 content.trim()
             ]
         );
@@ -51,7 +56,7 @@ const addComment = async (req, res) => {
             (user_id, organization_id, project_id, task_id, action, details)
             VALUES (?, ?, ?, ?, ?, ?)`,
             [
-                req.user.userId,
+                userId,
                 task.organization_id,
                 task.project_id,
                 task_id,
@@ -61,28 +66,26 @@ const addComment = async (req, res) => {
         );
 
         // Notify assigned user if different from commenter
-        const [assigned] = await pool.query(
-            `SELECT assigned_to
-             FROM tasks
-             WHERE id = ?`,
-            [task_id]
-        );
-
         if (
-            assigned.length > 0 &&
-            assigned[0].assigned_to &&
-            Number(assigned[0].assigned_to) !==
-            Number(req.user.userId)
+            task.assigned_to &&
+            Number(task.assigned_to) !== Number(userId)
         ) {
             await pool.query(
-                `INSERT INTO notifications
-                (user_id, type, title, message)
-                VALUES (?, ?, ?, ?)`,
+                `INSERT INTO notifications (user_id, type, title, message)
+                 SELECT ?, ?, ?, ?
+                 WHERE EXISTS (
+                    SELECT 1
+                    FROM project_members
+                    WHERE project_id = ?
+                      AND user_id = ?
+                 )`,
                 [
-                    assigned[0].assigned_to,
+                    task.assigned_to,
                     "COMMENT",
                     "New task comment",
-                    `A new comment was added to "${task.title}".`
+                    `A new comment was added to "${task.title}".`,
+                    task.project_id,
+                    task.assigned_to
                 ]
             );
         }
@@ -98,8 +101,7 @@ const addComment = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to add comment",
-            error: error.message
+            message: "Failed to add comment"
         });
     }
 };
@@ -108,6 +110,24 @@ const addComment = async (req, res) => {
 const getTaskComments = async (req, res) => {
     try {
         const { taskId } = req.params;
+        const userId = req.user.userId;
+
+        const [accessibleTasks] = await pool.query(
+            `SELECT t.id
+             FROM tasks t
+             JOIN project_members pm
+               ON pm.project_id = t.project_id
+             WHERE t.id = ?
+               AND pm.user_id = ?`,
+            [taskId, userId]
+        );
+
+        if (accessibleTasks.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Task not found or access denied"
+            });
+        }
 
         const [comments] = await pool.query(
             `SELECT

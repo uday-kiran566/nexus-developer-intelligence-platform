@@ -1,10 +1,12 @@
 const pool = require("../db");
 
 const createOrganization = async (req, res) => {
+    let connection;
+
     try {
         const { name } = req.body;
 
-        if (!name || !name.trim()) {
+        if (typeof name !== "string" || !name.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Organization name is required"
@@ -12,18 +14,22 @@ const createOrganization = async (req, res) => {
         }
 
         const ownerId = req.user.userId;
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
 
-        const [result] = await pool.query(
+        const [result] = await connection.query(
             "INSERT INTO organizations (name, owner_id) VALUES (?, ?)",
             [name.trim(), ownerId]
         );
 
-        await pool.query(
+        await connection.query(
             `INSERT INTO organization_members
             (organization_id, user_id, role)
             VALUES (?, ?, 'OWNER')`,
             [result.insertId, ownerId]
         );
+
+        await connection.commit();
 
         res.status(201).json({
             success: true,
@@ -36,13 +42,19 @@ const createOrganization = async (req, res) => {
         });
 
     } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
         console.error("CREATE ORGANIZATION ERROR:", error);
 
         res.status(500).json({
             success: false,
-            message: "Failed to create organization",
-            error: error.message
+            message: "Failed to create organization"
         });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
 
@@ -51,7 +63,7 @@ const getOrganizations = async (req, res) => {
         const userId = req.user.userId;
 
         const [organizations] = await pool.query(
-            `SELECT o.id, o.name, o.owner_id, o.created_at
+            `SELECT o.id, o.name, o.owner_id, o.created_at, om.role
              FROM organizations o
              JOIN organization_members om
                ON o.id = om.organization_id
@@ -70,8 +82,7 @@ const getOrganizations = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to load organizations",
-            error: error.message
+            message: "Failed to load organizations"
         });
     }
 };

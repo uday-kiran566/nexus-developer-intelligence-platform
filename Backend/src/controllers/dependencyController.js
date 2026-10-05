@@ -7,6 +7,7 @@ const addDependency = async (req, res) => {
             task_id,
             depends_on_task_id
         } = req.body;
+        const userId = req.user.userId;
 
         if (!task_id || !depends_on_task_id) {
             return res.status(400).json({
@@ -22,18 +23,27 @@ const addDependency = async (req, res) => {
             });
         }
 
-        // Check that both tasks exist
         const [tasks] = await pool.query(
-            `SELECT id
-             FROM tasks
-             WHERE id IN (?, ?)`,
-            [task_id, depends_on_task_id]
+            `SELECT t.id, t.project_id
+             FROM tasks t
+             JOIN project_members pm
+               ON pm.project_id = t.project_id
+             WHERE t.id IN (?, ?)
+               AND pm.user_id = ?`,
+            [task_id, depends_on_task_id, userId]
         );
 
         if (tasks.length !== 2) {
             return res.status(404).json({
                 success: false,
-                message: "One or both tasks were not found"
+                message: "One or both tasks were not found or access denied"
+            });
+        }
+
+        if (Number(tasks[0].project_id) !== Number(tasks[1].project_id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Dependencies must be between tasks in the same project"
             });
         }
 
@@ -70,8 +80,7 @@ const addDependency = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to create dependency",
-            error: error.message
+            message: "Failed to create dependency"
         });
     }
 };
@@ -81,6 +90,7 @@ const addDependency = async (req, res) => {
 const getDependencies = async (req, res) => {
     try {
         const { taskId } = req.params;
+        const userId = req.user.userId;
 
         const [dependencies] = await pool.query(
             `SELECT
@@ -91,9 +101,15 @@ const getDependencies = async (req, res) => {
              FROM task_dependencies td
              JOIN tasks t
                 ON td.depends_on_task_id = t.id
+             JOIN tasks source_task
+                ON source_task.id = td.task_id
+               AND source_task.project_id = t.project_id
+             JOIN project_members pm
+                ON pm.project_id = source_task.project_id
              WHERE td.task_id = ?
+               AND pm.user_id = ?
              ORDER BY td.id`,
-            [taskId]
+            [taskId, userId]
         );
 
         res.json({
@@ -106,8 +122,7 @@ const getDependencies = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to fetch dependencies",
-            error: error.message
+            message: "Failed to fetch dependencies"
         });
     }
 };

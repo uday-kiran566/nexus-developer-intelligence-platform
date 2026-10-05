@@ -40,6 +40,23 @@ const createTask = async (req, res) => {
             });
         }
 
+        if (assigned_to) {
+            const [assignees] = await pool.query(
+                `SELECT id
+                 FROM project_members
+                 WHERE project_id = ?
+                   AND user_id = ?`,
+                [project_id, assigned_to]
+            );
+
+            if (assignees.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Assignee must be a member of this project"
+                });
+            }
+        }
+
         const organizationId = members[0].organization_id;
 
         const taskStatus = status || "TODO";
@@ -103,8 +120,7 @@ const createTask = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to create task",
-            error: error.message
+            message: "Failed to create task"
         });
     }
 };
@@ -163,8 +179,7 @@ const getProjectTasks = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to fetch tasks",
-            error: error.message
+            message: "Failed to fetch tasks"
         });
     }
 };
@@ -221,6 +236,23 @@ const updateTask = async (req, res) => {
         }
 
         const oldTask = existingTasks[0];
+
+        if (assigned_to) {
+            const [assignees] = await pool.query(
+                `SELECT id
+                 FROM project_members
+                 WHERE project_id = ?
+                   AND user_id = ?`,
+                [oldTask.project_id, assigned_to]
+            );
+
+            if (assignees.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Assignee must be a member of this project"
+                });
+            }
+        }
 
         const newStatus = status || "TODO";
         const newPriority = priority || "MEDIUM";
@@ -297,8 +329,7 @@ const updateTask = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to update task",
-            error: error.message
+            message: "Failed to update task"
         });
     }
 };

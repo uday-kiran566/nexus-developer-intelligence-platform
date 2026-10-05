@@ -2,6 +2,8 @@ const pool = require("../db");
 
 // CREATE PROJECT
 const createProject = async (req, res) => {
+    let connection;
+
     try {
         const {
             organization_id,
@@ -12,30 +14,34 @@ const createProject = async (req, res) => {
 
         const userId = req.user.userId;
 
-        if (!organization_id || !name || !name.trim()) {
+        if (!organization_id || typeof name !== "string" || !name.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Organization ID and project name are required"
             });
         }
 
-        // Check organization membership
-        const [members] = await pool.query(
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [members] = await connection.query(
             `SELECT id
              FROM organization_members
              WHERE organization_id = ?
-               AND user_id = ?`,
+               AND user_id = ?
+             FOR UPDATE`,
             [organization_id, userId]
         );
 
         if (members.length === 0) {
+            await connection.rollback();
             return res.status(403).json({
                 success: false,
                 message: "You do not have access to this organization"
             });
         }
 
-        const [result] = await pool.query(
+        const [result] = await connection.query(
             `INSERT INTO projects
             (organization_id, name, description, status, created_by)
             VALUES (?, ?, ?, ?, ?)`,
@@ -49,12 +55,14 @@ const createProject = async (req, res) => {
         );
 
         // Creator becomes project manager
-        await pool.query(
+        await connection.query(
             `INSERT INTO project_members
             (project_id, user_id, role)
             VALUES (?, ?, 'MANAGER')`,
             [result.insertId, userId]
         );
+
+        await connection.commit();
 
         res.status(201).json({
             success: true,
@@ -70,13 +78,19 @@ const createProject = async (req, res) => {
         });
 
     } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
         console.error("CREATE PROJECT ERROR:", error);
 
         res.status(500).json({
             success: false,
-            message: "Failed to create project",
-            error: error.message
+            message: "Failed to create project"
         });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
 
@@ -142,10 +156,13 @@ const getProjects = async (req, res) => {
              FROM projects p
              INNER JOIN project_members pm
                 ON p.id = pm.project_id
+             INNER JOIN organization_members om
+                ON om.organization_id = p.organization_id
              WHERE p.organization_id = ?
                AND pm.user_id = ?
+               AND om.user_id = ?
              ORDER BY p.created_at DESC`,
-            [organizationId, userId]
+            [organizationId, userId, userId]
         );
 
         res.json({

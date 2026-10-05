@@ -4,8 +4,12 @@ const getDashboard = async (req, res) => {
     try {
         const userId = req.user.userId;
 
-        // Only the logged-in user
-        const totalUsers = 1;
+        const [users] = await pool.query(
+            `SELECT COUNT(*) AS total
+             FROM users
+             WHERE id = ?`,
+            [userId]
+        );
 
         // Organizations belonging to logged-in user
         const [organizations] = await pool.query(
@@ -58,7 +62,7 @@ const getDashboard = async (req, res) => {
         res.json({
             success: true,
             dashboard: {
-                totalUsers: totalUsers,
+                totalUsers: users[0].total,
                 totalOrganizations: organizations[0].total,
                 totalProjects: projects[0].total,
                 totalTasks: tasks[0].total,
@@ -72,8 +76,7 @@ const getDashboard = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to load dashboard",
-            error: error.message
+            message: "Failed to load dashboard"
         });
     }
 };

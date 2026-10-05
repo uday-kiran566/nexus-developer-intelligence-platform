@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const PROJECT_ID = 1;
 
 const COLUMNS = [
     { id: "TODO", name: "To Do" },
@@ -12,6 +11,8 @@ const COLUMNS = [
 ];
 
 function Tasks() {
+    const [projects, setProjects] = useState([]);
+    const [selectedProject, setSelectedProject] = useState("");
     const [tasks, setTasks] = useState([]);
     const [labels, setLabels] = useState([]);
     const [taskLabels, setTaskLabels] = useState({});
@@ -35,19 +36,23 @@ function Tasks() {
 
     const token = localStorage.getItem("token");
 
-    const config = {
+    const config = useMemo(() => ({
         headers: {
             Authorization: `Bearer ${token}`
         }
-    };
+    }), [token]);
 
     // -----------------------------
     // GET TASKS
     // -----------------------------
-    const fetchTasks = async () => {
+    const fetchTasks = async (projectId = selectedProject) => {
+        if (!projectId) {
+            return;
+        }
+
         try {
             const response = await axios.get(
-                `${API_URL}/tasks/project/${PROJECT_ID}`,
+                `${API_URL}/tasks/project/${projectId}`,
                 config
             );
 
@@ -58,22 +63,6 @@ function Tasks() {
                 err.response?.data?.message ||
                 "Failed to load tasks"
             );
-        }
-    };
-
-    // -----------------------------
-    // GET PROJECT LABELS
-    // -----------------------------
-    const fetchLabels = async () => {
-        try {
-            const response = await axios.get(
-                `${API_URL}/labels/project/${PROJECT_ID}`,
-                config
-            );
-
-            setLabels(response.data.labels || []);
-        } catch (err) {
-            console.error("LABEL LOAD ERROR:", err);
         }
     };
 
@@ -116,15 +105,82 @@ function Tasks() {
     };
 
     useEffect(() => {
-        fetchTasks();
-        fetchLabels();
-    }, []);
+        let active = true;
+
+        axios.get(`${API_URL}/projects/my`, config)
+            .then((response) => {
+                if (!active) {
+                    return;
+                }
+                const availableProjects = response.data.projects || [];
+                setProjects(availableProjects);
+                setSelectedProject(String(availableProjects[0]?.id || ""));
+            })
+            .catch((err) => {
+                if (active) {
+                    console.error("PROJECT LOAD ERROR:", err);
+                    setError(
+                        err.response?.data?.message ||
+                        "Failed to load your projects"
+                    );
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [config]);
+
+    useEffect(() => {
+        if (!selectedProject) {
+            return undefined;
+        }
+
+        let active = true;
+
+        axios.get(`${API_URL}/tasks/project/${selectedProject}`, config)
+            .then((response) => {
+                if (active) {
+                    setTasks(response.data.tasks || []);
+                }
+            })
+            .catch((err) => {
+                if (active) {
+                    console.error(err);
+                    setError(
+                        err.response?.data?.message ||
+                        "Failed to load tasks"
+                    );
+                }
+            });
+
+        axios.get(`${API_URL}/labels/project/${selectedProject}`, config)
+            .then((response) => {
+                if (active) {
+                    setLabels(response.data.labels || []);
+                }
+            })
+            .catch((err) => {
+                if (active) {
+                    console.error("LABEL LOAD ERROR:", err);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [selectedProject, config]);
 
     // -----------------------------
     // CREATE TASK
     // -----------------------------
     const createTask = async (event) => {
         event.preventDefault();
+
+        if (!selectedProject) {
+            setError("Select a project first");
+            return;
+        }
 
         if (!title.trim()) {
             setError("Task title is required");
@@ -138,7 +194,7 @@ function Tasks() {
             await axios.post(
                 `${API_URL}/tasks`,
                 {
-                    project_id: PROJECT_ID,
+                    project_id: Number(selectedProject),
                     title: title.trim(),
                     description: description.trim(),
                     status: "TODO",
@@ -425,6 +481,50 @@ function Tasks() {
 
             <h2>Task Board</h2>
 
+            <label style={{ display: "block", margin: "18px 0 8px" }}>
+                Project
+            </label>
+            <select
+                value={selectedProject}
+                onChange={(event) => {
+                    setTasks([]);
+                    setLabels([]);
+                    setTaskLabels({});
+                    setDependencies({});
+                    setComments({});
+                    setOpenComments(null);
+                    setOpenDetails(null);
+                    setSelectedProject(event.target.value);
+                }}
+                disabled={projects.length === 0}
+                style={{
+                    width: "100%",
+                    maxWidth: "480px",
+                    padding: "12px",
+                    marginBottom: "20px",
+                    background: "#0f172a",
+                    color: "#ffffff",
+                    border: "1px solid #334155",
+                    borderRadius: "8px"
+                }}
+            >
+                {projects.length === 0 ? (
+                    <option value="">No projects available</option>
+                ) : (
+                    projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                            {project.name}
+                        </option>
+                    ))
+                )}
+            </select>
+
+            {projects.length === 0 && (
+                <p style={{ color: "#fbbf24" }}>
+                    Create or join a project to view its tasks.
+                </p>
+            )}
+
             {error && (
                 <div
                     style={{
@@ -495,7 +595,7 @@ function Tasks() {
 
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !selectedProject}
                     style={{
                         padding: "10px 20px"
                     }}

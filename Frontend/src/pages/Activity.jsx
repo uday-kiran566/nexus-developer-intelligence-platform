@@ -2,39 +2,81 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 function Activity() {
+    const [organizations, setOrganizations] = useState([]);
+    const [selectedOrganization, setSelectedOrganization] = useState("");
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
     useEffect(() => {
-        const loadActivity = async () => {
+        const loadOrganizations = async () => {
             try {
                 const token = localStorage.getItem("token");
-
                 const response = await axios.get(
-                    `${import.meta.env.VITE_API_URL}/activity/organization/1`,
+                    `${import.meta.env.VITE_API_URL}/organizations`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`
                         }
                     }
                 );
-
-                setLogs(response.data.logs || []);
+                const availableOrganizations = response.data.organizations || [];
+                setOrganizations(availableOrganizations);
+                setSelectedOrganization((current) =>
+                    current || String(availableOrganizations[0]?.id || "")
+                );
+                if (availableOrganizations.length === 0) {
+                    setLoading(false);
+                }
             } catch (err) {
-                console.error("ACTIVITY ERROR:", err);
-
+                console.error("ORGANIZATION LOAD ERROR:", err);
                 setError(
                     err.response?.data?.message ||
-                    "Failed to load activity"
+                    "Failed to load organizations"
                 );
-            } finally {
                 setLoading(false);
             }
         };
 
-        loadActivity();
+        loadOrganizations();
     }, []);
+
+    useEffect(() => {
+        if (!selectedOrganization) {
+            return undefined;
+        }
+
+        let active = true;
+        const token = localStorage.getItem("token");
+        axios.get(
+            `${import.meta.env.VITE_API_URL}/activity/organization/${selectedOrganization}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        ).then((response) => {
+            if (active) {
+                setLogs(response.data.logs || []);
+            }
+        }).catch((err) => {
+            if (active) {
+                console.error("ACTIVITY ERROR:", err);
+                setError(
+                    err.response?.data?.message ||
+                    "Failed to load activity"
+                );
+            }
+        }).finally(() => {
+            if (active) {
+                setLoading(false);
+            }
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [selectedOrganization]);
 
     return (
         <div
@@ -56,6 +98,38 @@ function Activity() {
                 <p style={{ color: "#94a3b8" }}>
                     Recent organization activity
                 </p>
+
+                <label style={{ display: "block", margin: "18px 0 8px" }}>
+                    Organization
+                </label>
+                <select
+                    value={selectedOrganization}
+                    onChange={(event) => {
+                        setLoading(true);
+                        setError("");
+                        setLogs([]);
+                        setSelectedOrganization(event.target.value);
+                    }}
+                    disabled={organizations.length === 0}
+                    style={{
+                        width: "100%",
+                        padding: "12px",
+                        background: "#0f172a",
+                        color: "#ffffff",
+                        border: "1px solid #334155",
+                        borderRadius: "8px"
+                    }}
+                >
+                    {organizations.length === 0 ? (
+                        <option value="">No organizations available</option>
+                    ) : (
+                        organizations.map((organization) => (
+                            <option key={organization.id} value={organization.id}>
+                                {organization.name}
+                            </option>
+                        ))
+                    )}
+                </select>
 
                 {loading && (
                     <p>Loading activity...</p>
@@ -144,4 +218,3 @@ function Activity() {
 }
 
 export default Activity;
-
