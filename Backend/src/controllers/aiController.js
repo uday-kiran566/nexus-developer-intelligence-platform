@@ -3,17 +3,22 @@ const {
     indexProject,
     searchKnowledge
 } = require("../services/ragService");
+const pool = require("../db");
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY
 });
 
+
+// CHAT WITH NEXUS AI
 const chat = async (req, res) => {
     try {
         const {
             message,
             project_id
         } = req.body;
+
+        const userId = req.user.userId;
 
         if (!message || !message.trim()) {
             return res.status(400).json({
@@ -29,7 +34,26 @@ const chat = async (req, res) => {
             });
         }
 
-        // Find relevant project/task information
+        // SECURITY:
+        // Verify that the logged-in user belongs to this project
+        const [projects] = await pool.query(
+            `SELECT p.id
+             FROM projects p
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE p.id = ?
+               AND pm.user_id = ?`,
+            [project_id, userId]
+        );
+
+        if (projects.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this project"
+            });
+        }
+
+        // Search ONLY this authorized project
         const relevantChunks = await searchKnowledge(
             Number(project_id),
             message.trim(),
@@ -89,11 +113,31 @@ Rules:
 const indexProjectData = async (req, res) => {
     try {
         const { projectId } = req.params;
+        const userId = req.user.userId;
 
         if (!projectId) {
             return res.status(400).json({
                 success: false,
                 message: "Project ID is required"
+            });
+        }
+
+        // SECURITY:
+        // Only a project member can index this project
+        const [projects] = await pool.query(
+            `SELECT p.id
+             FROM projects p
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE p.id = ?
+               AND pm.user_id = ?`,
+            [projectId, userId]
+        );
+
+        if (projects.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "You do not have access to this project"
             });
         }
 
