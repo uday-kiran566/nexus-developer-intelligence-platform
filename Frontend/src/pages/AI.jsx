@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 
 function AI() {
     const [projects, setProjects] = useState([]);
@@ -8,7 +9,9 @@ function AI() {
     const [answer, setAnswer] = useState("");
     const [sources, setSources] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [loadingProjects, setLoadingProjects] = useState(true);
+    const [loadingProjects, setLoadingProjects] = useState(
+        () => Boolean(localStorage.getItem("token"))
+    );
     const [error, setError] = useState("");
 
     const token = localStorage.getItem("token");
@@ -21,7 +24,7 @@ function AI() {
                 setError("");
 
                 const response = await axios.get(
-                    `${import.meta.env.VITE_API_URL}/projects/my`,
+                    `${API_URL}/projects/my`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`
@@ -33,9 +36,7 @@ function AI() {
 
                 setProjects(userProjects);
 
-                if (userProjects.length > 0) {
-                    setSelectedProject(String(userProjects[0].id));
-                }
+                setSelectedProject(String(userProjects[0]?.id || ""));
             } catch (err) {
                 console.error("PROJECT LOAD ERROR:", err);
 
@@ -50,9 +51,6 @@ function AI() {
 
         if (token) {
             loadProjects();
-        } else {
-            setLoadingProjects(false);
-            setError("Please log in again.");
         }
     }, [token]);
 
@@ -75,7 +73,7 @@ function AI() {
             setSources([]);
 
             const response = await axios.post(
-                `${import.meta.env.VITE_API_URL}/ai/chat`,
+                `${API_URL}/ai/chat`,
                 {
                     project_id: Number(selectedProject),
                     message: message.trim()

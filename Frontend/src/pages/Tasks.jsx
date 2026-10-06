@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "../api";
 
 const COLUMNS = [
     { id: "TODO", name: "To Do" },
@@ -26,6 +25,8 @@ function Tasks() {
     const [openComments, setOpenComments] = useState(null);
     const [comments, setComments] = useState({});
     const [commentText, setCommentText] = useState("");
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingCommentText, setEditingCommentText] = useState("");
 
     const [openDetails, setOpenDetails] = useState(null);
 
@@ -35,6 +36,9 @@ function Tasks() {
     const [error, setError] = useState("");
 
     const token = localStorage.getItem("token");
+    const currentUserId = JSON.parse(
+        localStorage.getItem("user") || "{}"
+    ).id;
 
     const config = useMemo(() => ({
         headers: {
@@ -341,6 +345,58 @@ function Tasks() {
             setError("Failed to add comment");
         } finally {
             setCommentLoading(false);
+        }
+    };
+
+    const saveComment = async (taskId, commentId) => {
+        if (!editingCommentText.trim()) {
+            setError("Comment content is required");
+            return;
+        }
+
+        try {
+            await axios.put(
+                `${API_URL}/comments/${commentId}`,
+                { content: editingCommentText.trim() },
+                config
+            );
+            setComments((old) => ({
+                ...old,
+                [taskId]: (old[taskId] || []).map((comment) =>
+                    comment.id === commentId
+                        ? { ...comment, content: editingCommentText.trim() }
+                        : comment
+                )
+            }));
+            setEditingCommentId(null);
+            setEditingCommentText("");
+        } catch (err) {
+            console.error("COMMENT UPDATE ERROR:", err);
+            setError(
+                err.response?.data?.message ||
+                "Failed to update comment"
+            );
+        }
+    };
+
+    const deleteComment = async (taskId, commentId) => {
+        try {
+            await axios.delete(
+                `${API_URL}/comments/${commentId}`,
+                config
+            );
+            setComments((old) => ({
+                ...old,
+                [taskId]: (old[taskId] || []).filter(
+                    (comment) => comment.id !== commentId
+                )
+            }));
+        } catch (err) {
+            console.error("COMMENT DELETE ERROR:", err);
+            setError(
+                err.response?.data?.message ||
+                "Failed to delete comment"
+            );
         }
     };
 
@@ -1028,11 +1084,58 @@ function Tasks() {
                                                             }
                                                         </strong>
 
-                                                        <p>
-                                                            {
-                                                                comment.content
-                                                            }
-                                                        </p>
+                                                        {editingCommentId === comment.id ? (
+                                                            <>
+                                                                <textarea
+                                                                    value={editingCommentText}
+                                                                    onChange={(event) =>
+                                                                        setEditingCommentText(event.target.value)
+                                                                    }
+                                                                    rows="2"
+                                                                    style={{
+                                                                        width: "100%",
+                                                                        boxSizing: "border-box"
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => saveComment(task.id, comment.id)}
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setEditingCommentId(null);
+                                                                        setEditingCommentText("");
+                                                                    }}
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <p>{comment.content}</p>
+                                                        )}
+                                                        {Number(comment.user_id) === Number(currentUserId) &&
+                                                            editingCommentId !== comment.id && (
+                                                                <div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setEditingCommentId(comment.id);
+                                                                            setEditingCommentText(comment.content);
+                                                                        }}
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => deleteComment(task.id, comment.id)}
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                     </div>
                                                 )
                                             )}

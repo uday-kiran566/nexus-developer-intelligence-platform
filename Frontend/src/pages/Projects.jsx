@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 
 function Projects() {
     const [organizations, setOrganizations] = useState([]);
@@ -10,6 +11,7 @@ function Projects() {
     const [status, setStatus] = useState("PLANNING");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [loadingOrganizations, setLoadingOrganizations] = useState(true);
 
     const token = localStorage.getItem("token");
 
@@ -21,7 +23,7 @@ function Projects() {
 
         try {
             const response = await axios.get(
-                `${import.meta.env.VITE_API_URL}/projects/organization/${organizationId}`,
+                `${API_URL}/projects/organization/${organizationId}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -40,7 +42,7 @@ function Projects() {
         let active = true;
 
         axios.get(
-            `${import.meta.env.VITE_API_URL}/organizations`,
+            `${API_URL}/organizations`,
             {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -59,6 +61,10 @@ function Projects() {
                 console.error(error);
                 setError("Failed to load organizations");
             }
+        }).finally(() => {
+            if (active) {
+                setLoadingOrganizations(false);
+            }
         });
 
         return () => {
@@ -67,14 +73,14 @@ function Projects() {
     }, [token]);
 
     useEffect(() => {
-        if (!selectedOrganization) {
+        if (loadingOrganizations || !selectedOrganization) {
             return undefined;
         }
 
         let active = true;
 
         axios.get(
-            `${import.meta.env.VITE_API_URL}/projects/organization/${selectedOrganization}`,
+            `${API_URL}/projects/organization/${selectedOrganization}`,
             {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -94,10 +100,15 @@ function Projects() {
         return () => {
             active = false;
         };
-    }, [selectedOrganization, token]);
+    }, [selectedOrganization, token, loadingOrganizations]);
 
     const createProject = async (e) => {
         e.preventDefault();
+
+        if (loadingOrganizations) {
+            setError("Organizations are still loading. Please try again.");
+            return;
+        }
 
         if (!selectedOrganization) {
             setError("Create or select an organization first");
@@ -114,7 +125,7 @@ function Projects() {
             setError("");
 
             await axios.post(
-                `${import.meta.env.VITE_API_URL}/projects`,
+                `${API_URL}/projects`,
                 {
                     organization_id: Number(selectedOrganization),
                     name: name.trim(),
@@ -177,7 +188,7 @@ function Projects() {
                             setError("");
                             setSelectedOrganization(e.target.value);
                         }}
-                        disabled={organizations.length === 0}
+                        disabled={loadingOrganizations || organizations.length === 0}
                         style={{
                             width: "100%",
                             padding: "14px",
@@ -188,7 +199,9 @@ function Projects() {
                             border: "1px solid #475569"
                         }}
                     >
-                        {organizations.length === 0 ? (
+                        {loadingOrganizations ? (
+                            <option value="">Loading organizations...</option>
+                        ) : organizations.length === 0 ? (
                             <option value="">Create an organization first</option>
                         ) : (
                             organizations.map((organization) => (
@@ -236,7 +249,7 @@ function Projects() {
 
                     <button
                         type="submit"
-                        disabled={loading || organizations.length === 0}
+                        disabled={loading || loadingOrganizations || organizations.length === 0}
                     >
                         {loading
                             ? "Creating..."

@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 
 function Organizations() {
     const [organizations, setOrganizations] = useState([]);
     const [name, setName] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [loadingOrganizations, setLoadingOrganizations] = useState(true);
 
     const token = localStorage.getItem("token");
 
     const fetchOrganizations = async () => {
         try {
+            setLoadingOrganizations(true);
             const response = await axios.get(
-                `${import.meta.env.VITE_API_URL}/organizations`,
+                `${API_URL}/organizations`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -25,12 +28,37 @@ function Organizations() {
         } catch (error) {
             console.error(error);
             setError("Failed to load organizations");
+        } finally {
+            setLoadingOrganizations(false);
         }
     };
 
     useEffect(() => {
-        fetchOrganizations();
-    }, []);
+        let active = true;
+
+        axios.get(`${API_URL}/organizations`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }).then((response) => {
+            if (active) {
+                setOrganizations(response.data.organizations || []);
+            }
+        }).catch((error) => {
+            if (active) {
+                console.error(error);
+                setError("Failed to load organizations");
+            }
+        }).finally(() => {
+            if (active) {
+                setLoadingOrganizations(false);
+            }
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [token]);
 
     const createOrganization = async (e) => {
         e.preventDefault();
@@ -45,7 +73,7 @@ function Organizations() {
             setError("");
 
             await axios.post(
-                `${import.meta.env.VITE_API_URL}/organizations`,
+                `${API_URL}/organizations`,
                 {
                     name: name.trim()
                 },
@@ -114,7 +142,9 @@ function Organizations() {
 
                 <div className="stats-grid">
 
-                    {organizations.map((organization) => (
+                    {loadingOrganizations ? (
+                        <p>Loading organizations...</p>
+                    ) : organizations.map((organization) => (
                         <div
                             className="stat-card"
                             key={organization.id}

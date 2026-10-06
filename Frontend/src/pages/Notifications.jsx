@@ -1,10 +1,44 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 
 function Notifications() {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [updatingId, setUpdatingId] = useState(null);
+
+    const markAsRead = async (notificationId) => {
+        try {
+            setUpdatingId(notificationId);
+            const token = localStorage.getItem("token");
+            await axios.put(
+                `${API_URL}/notifications/${notificationId}/read`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            setNotifications((current) =>
+                current.map((notification) =>
+                    notification.id === notificationId
+                        ? { ...notification, is_read: true }
+                        : notification
+                )
+            );
+        } catch (err) {
+            console.error("MARK NOTIFICATION ERROR:", err);
+            setError(
+                err.response?.data?.message ||
+                "Failed to update notification"
+            );
+        } finally {
+            setUpdatingId(null);
+        }
+    };
 
     useEffect(() => {
         const loadNotifications = async () => {
@@ -12,7 +46,7 @@ function Notifications() {
                 const token = localStorage.getItem("token");
 
                 const response = await axios.get(
-                    `${import.meta.env.VITE_API_URL}/notifications`,
+                    `${API_URL}/notifications`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`
@@ -122,6 +156,18 @@ function Notifications() {
                                 notification.created_at
                             ).toLocaleString()}
                         </small>
+                        {!notification.is_read && (
+                            <button
+                                type="button"
+                                onClick={() => markAsRead(notification.id)}
+                                disabled={updatingId === notification.id}
+                                style={{ display: "block", marginTop: "12px" }}
+                            >
+                                {updatingId === notification.id
+                                    ? "Updating..."
+                                    : "Mark as read"}
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>
@@ -130,4 +176,3 @@ function Notifications() {
 }
 
 export default Notifications;
-

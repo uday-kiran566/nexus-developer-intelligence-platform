@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 
 function Activity() {
     const [organizations, setOrganizations] = useState([]);
@@ -13,7 +14,7 @@ function Activity() {
             try {
                 const token = localStorage.getItem("token");
                 const response = await axios.get(
-                    `${import.meta.env.VITE_API_URL}/organizations`,
+                    `${API_URL}/organizations`,
                     {
                         headers: {
                             Authorization: `Bearer ${token}`
@@ -49,7 +50,7 @@ function Activity() {
         let active = true;
         const token = localStorage.getItem("token");
         axios.get(
-            `${import.meta.env.VITE_API_URL}/activity/organization/${selectedOrganization}`,
+            `${API_URL}/activity/organization/${selectedOrganization}`,
             {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -96,7 +97,7 @@ function Activity() {
                 <h1>NEXUS Activity</h1>
 
                 <p style={{ color: "#94a3b8" }}>
-                    Recent organization activity
+                    Your authorized activity
                 </p>
 
                 <label style={{ display: "block", margin: "18px 0 8px" }}>
