@@ -2,7 +2,8 @@ const express = require("express");
 
 const {
     addDependency,
-    getDependencies
+    getDependencies,
+    deleteDependency
 } = require("../controllers/dependencyController");
 
 const authenticate = require("../middleware/authMiddleware");
@@ -20,5 +21,7 @@ router.get(
     authenticate,
     getDependencies
 );
+
+router.delete("/:dependencyId", authenticate, deleteDependency);
 
 module.exports = router;

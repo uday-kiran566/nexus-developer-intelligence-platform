@@ -58,6 +58,22 @@ app.get("/api/test-db", async (req, res) => {
     }
 });
 
+app.use((error, req, res, next) => {
+    console.error("UNHANDLED API ERROR:", error);
+
+    if (res.headersSent) {
+        return next(error);
+    }
+
+    const status = error.status === 400 ? 400 : 500;
+    return res.status(status).json({
+        success: false,
+        message: status === 400
+            ? "Invalid request body"
+            : "Internal server error"
+    });
+});
+
 const PORT = process.env.PORT || 5000;
 
 if (require.main === module) {

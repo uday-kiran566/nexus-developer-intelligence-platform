@@ -27,6 +27,22 @@ const createTeam = async (req, res) => {
             });
         }
 
+        const [admins] = await pool.query(
+            `SELECT id
+             FROM organization_members
+             WHERE organization_id = ?
+               AND user_id = ?
+               AND role IN ('ADMIN', 'OWNER')`,
+            [organization_id, userId]
+        );
+
+        if (admins.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: "Organization administrator access is required"
+            });
+        }
+
         const [result] = await pool.query(
             "INSERT INTO teams (organization_id, name) VALUES (?, ?)",
             [organization_id, name.trim()]
@@ -98,6 +114,7 @@ const addTeamMember = async (req, res) => {
              JOIN organization_members actor_membership
                ON actor_membership.organization_id = t.organization_id
               AND actor_membership.user_id = ?
+              AND actor_membership.role IN ('ADMIN', 'OWNER')
              JOIN organization_members target_membership
                ON target_membership.organization_id = t.organization_id
               AND target_membership.user_id = ?
@@ -128,6 +145,121 @@ const addTeamMember = async (req, res) => {
             success: false,
             message: "Failed to add team member"
         });
+    }
+};
+
+const removeTeamMember = async (req, res) => {
+    try {
+        const { teamId, memberId } = req.params;
+        const userId = req.user.userId;
+
+        const [teams] = await pool.query(
+            `SELECT t.id
+             FROM teams t
+             JOIN organization_members om
+               ON om.organization_id = t.organization_id
+             WHERE t.id = ?
+               AND om.user_id = ?
+               AND om.role IN ('ADMIN', 'OWNER')`,
+            [teamId, userId]
+        );
+
+        if (teams.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Team not found or access denied"
+            });
+        }
+
+        const [result] = await pool.query(
+            "DELETE FROM team_members WHERE team_id = ? AND user_id = ?",
+            [teamId, memberId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Team member not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Team member removed successfully"
+        });
+    } catch (error) {
+        console.error("REMOVE TEAM MEMBER ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to remove team member"
+        });
+    }
+};
+
+const deleteTeam = async (req, res) => {
+    let connection;
+
+    try {
+        const { teamId } = req.params;
+        const userId = req.user.userId;
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [teams] = await connection.query(
+            `SELECT t.id
+             FROM teams t
+             JOIN organization_members om
+               ON om.organization_id = t.organization_id
+             WHERE t.id = ?
+               AND om.user_id = ?
+               AND om.role IN ('ADMIN', 'OWNER')`,
+            [teamId, userId]
+        );
+
+        if (teams.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({
+                success: false,
+                message: "Team not found or access denied"
+            });
+        }
+
+        await connection.query(
+            "DELETE FROM team_members WHERE team_id = ?",
+            [teamId]
+        );
+        const [result] = await connection.query(
+            "DELETE FROM teams WHERE id = ?",
+            [teamId]
+        );
+
+        if (result.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(404).json({
+                success: false,
+                message: "Team not found"
+            });
+        }
+
+        await connection.commit();
+
+        res.json({
+            success: true,
+            message: "Team deleted successfully"
+        });
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error("DELETE TEAM ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete team"
+        });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
 
@@ -168,5 +300,7 @@ module.exports = {
     createTeam,
     getTeams,
     addTeamMember,
+    removeTeamMember,
+    deleteTeam,
     getTeamMembers
 };

@@ -40,7 +40,18 @@ const addDependency = async (req, res) => {
             });
         }
 
-        if (Number(tasks[0].project_id) !== Number(tasks[1].project_id)) {
+        const sourceTask = tasks.find(
+            (task) => Number(task.id) === Number(task_id)
+        );
+        const dependencyTask = tasks.find(
+            (task) => Number(task.id) === Number(depends_on_task_id)
+        );
+
+        if (
+            !sourceTask ||
+            !dependencyTask ||
+            Number(sourceTask.project_id) !== Number(dependencyTask.project_id)
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Dependencies must be between tasks in the same project"
@@ -127,8 +138,54 @@ const getDependencies = async (req, res) => {
     }
 };
 
+const deleteDependency = async (req, res) => {
+    try {
+        const { dependencyId } = req.params;
+        const userId = req.user.userId;
+
+        const [dependencies] = await pool.query(
+            `SELECT td.id
+             FROM task_dependencies td
+             JOIN tasks source_task
+               ON source_task.id = td.task_id
+             JOIN tasks target_task
+               ON target_task.id = td.depends_on_task_id
+              AND target_task.project_id = source_task.project_id
+             JOIN project_members pm
+               ON pm.project_id = source_task.project_id
+             WHERE td.id = ?
+               AND pm.user_id = ?`,
+            [dependencyId, userId]
+        );
+
+        if (dependencies.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Dependency not found or access denied"
+            });
+        }
+
+        await pool.query(
+            "DELETE FROM task_dependencies WHERE id = ?",
+            [dependencyId]
+        );
+
+        res.json({
+            success: true,
+            message: "Dependency deleted successfully"
+        });
+    } catch (error) {
+        console.error("DELETE DEPENDENCY ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete dependency"
+        });
+    }
+};
+
 
 module.exports = {
     addDependency,
-    getDependencies
+    getDependencies,
+    deleteDependency
 };

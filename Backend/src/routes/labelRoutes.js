@@ -4,7 +4,10 @@ const {
     createLabel,
     getProjectLabels,
     getTaskLabels,
-    addLabelToTask
+    addLabelToTask,
+    removeLabelFromTask,
+    updateLabel,
+    deleteLabel
 } = require("../controllers/labelController");
 
 const authenticate = require("../middleware/authMiddleware");
@@ -34,5 +37,14 @@ router.post(
     authenticate,
     addLabelToTask
 );
+
+router.delete(
+    "/task/:taskId/:labelId",
+    authenticate,
+    removeLabelFromTask
+);
+
+router.put("/:labelId", authenticate, updateLabel);
+router.delete("/:labelId", authenticate, deleteLabel);
 
 module.exports = router;

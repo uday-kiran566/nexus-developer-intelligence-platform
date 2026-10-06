@@ -21,6 +21,14 @@ const createProject = async (req, res) => {
             });
         }
 
+        const projectStatus = status || "PLANNING";
+        if (!["PLANNING", "ACTIVE", "COMPLETED", "ARCHIVED"].includes(projectStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid project status"
+            });
+        }
+
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
@@ -49,7 +57,7 @@ const createProject = async (req, res) => {
                 organization_id,
                 name.trim(),
                 description || null,
-                status || "PLANNING",
+                projectStatus,
                 userId
             ]
         );
@@ -72,7 +80,7 @@ const createProject = async (req, res) => {
                 organization_id,
                 name: name.trim(),
                 description: description || null,
-                status: status || "PLANNING",
+                status: projectStatus,
                 created_by: userId
             }
         });
@@ -236,10 +244,18 @@ const updateProject = async (req, res) => {
         const { name, description, status } = req.body;
         const userId = req.user.userId;
 
-        if (!name || !name.trim()) {
+        if (typeof name !== "string" || !name.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Project name is required"
+            });
+        }
+
+        const projectStatus = status || "PLANNING";
+        if (!["PLANNING", "ACTIVE", "COMPLETED", "ARCHIVED"].includes(projectStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid project status"
             });
         }
 
@@ -267,7 +283,7 @@ const updateProject = async (req, res) => {
             [
                 name.trim(),
                 description || null,
-                status || "PLANNING",
+                projectStatus,
                 projectId
             ]
         );
@@ -297,36 +313,52 @@ const updateProject = async (req, res) => {
 
 // DELETE PROJECT
 const deleteProject = async (req, res) => {
+    let connection;
+
     try {
         const { projectId } = req.params;
         const userId = req.user.userId;
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
 
-        const [members] = await pool.query(
-            `SELECT id
-             FROM project_members
-             WHERE project_id = ?
-               AND user_id = ?`,
+        const [members] = await connection.query(
+            `SELECT p.id
+             FROM projects p
+             INNER JOIN project_members pm
+                ON p.id = pm.project_id
+             WHERE p.id = ?
+               AND pm.user_id = ?
+             FOR UPDATE`,
             [projectId, userId]
         );
 
         if (members.length === 0) {
+            await connection.rollback();
             return res.status(403).json({
                 success: false,
                 message: "You do not have access to this project"
             });
         }
 
-        const [result] = await pool.query(
+        await connection.query(
+            "DELETE FROM knowledge_chunks WHERE project_id = ?",
+            [projectId]
+        );
+
+        const [result] = await connection.query(
             "DELETE FROM projects WHERE id = ?",
             [projectId]
         );
 
         if (result.affectedRows === 0) {
+            await connection.rollback();
             return res.status(404).json({
                 success: false,
                 message: "Project not found"
             });
         }
+
+        await connection.commit();
 
         res.json({
             success: true,
@@ -334,12 +366,19 @@ const deleteProject = async (req, res) => {
         });
 
     } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
         console.error("DELETE PROJECT ERROR:", error);
 
         res.status(500).json({
             success: false,
             message: "Failed to delete project"
         });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
     }
 };
 

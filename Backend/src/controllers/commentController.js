@@ -50,6 +50,14 @@ const addComment = async (req, res) => {
             ]
         );
 
+        await pool.query(
+            `DELETE FROM knowledge_chunks
+             WHERE source_type = 'TASK'
+               AND source_id = ?
+               AND project_id = ?`,
+            [task.id, task.project_id]
+        );
+
         // Activity
         await pool.query(
             `INSERT INTO activity_logs
@@ -159,8 +167,118 @@ const getTaskComments = async (req, res) => {
     }
 };
 
+const updateComment = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const { content } = req.body;
+        const userId = req.user.userId;
+
+        if (typeof content !== "string" || !content.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Comment content is required"
+            });
+        }
+
+        const [comments] = await pool.query(
+            `SELECT c.id, t.id AS task_id, t.project_id
+             FROM comments c
+             JOIN tasks t
+               ON t.id = c.task_id
+             JOIN project_members pm
+               ON pm.project_id = t.project_id
+             WHERE c.id = ?
+               AND c.user_id = ?
+               AND pm.user_id = ?`,
+            [commentId, userId, userId]
+        );
+
+        if (comments.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Comment not found or access denied"
+            });
+        }
+
+        await pool.query(
+            "UPDATE comments SET content = ? WHERE id = ? AND user_id = ?",
+            [content.trim(), commentId, userId]
+        );
+        await pool.query(
+            `DELETE FROM knowledge_chunks
+             WHERE source_type = 'TASK'
+               AND source_id = ?
+               AND project_id = ?`,
+            [comments[0].task_id, comments[0].project_id]
+        );
+
+        res.json({
+            success: true,
+            message: "Comment updated successfully"
+        });
+    } catch (error) {
+        console.error("UPDATE COMMENT ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update comment"
+        });
+    }
+};
+
+const deleteComment = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const userId = req.user.userId;
+
+        const [comments] = await pool.query(
+            `SELECT c.id, t.id AS task_id, t.project_id
+             FROM comments c
+             JOIN tasks t
+               ON t.id = c.task_id
+             JOIN project_members pm
+               ON pm.project_id = t.project_id
+             WHERE c.id = ?
+               AND c.user_id = ?
+               AND pm.user_id = ?`,
+            [commentId, userId, userId]
+        );
+
+        if (comments.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Comment not found or access denied"
+            });
+        }
+
+        await pool.query(
+            "DELETE FROM comments WHERE id = ? AND user_id = ?",
+            [commentId, userId]
+        );
+        await pool.query(
+            `DELETE FROM knowledge_chunks
+             WHERE source_type = 'TASK'
+               AND source_id = ?
+               AND project_id = ?`,
+            [comments[0].task_id, comments[0].project_id]
+        );
+
+        res.json({
+            success: true,
+            message: "Comment deleted successfully"
+        });
+    } catch (error) {
+        console.error("DELETE COMMENT ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete comment"
+        });
+    }
+};
+
 
 module.exports = {
     addComment,
-    getTaskComments
+    getTaskComments,
+    updateComment,
+    deleteComment
 };

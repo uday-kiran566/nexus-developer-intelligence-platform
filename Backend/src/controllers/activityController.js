@@ -21,8 +21,6 @@ const getActivityLogs = async (req, res) => {
             });
         }
 
-        // Only return activity from an organization
-        // the logged-in user belongs to
         const [logs] = await pool.query(
             `SELECT
                 a.*,
@@ -31,9 +29,10 @@ const getActivityLogs = async (req, res) => {
              LEFT JOIN users u
                 ON a.user_id = u.id
              WHERE a.organization_id = ?
+               AND a.user_id = ?
              ORDER BY a.created_at DESC
              LIMIT 100`,
-            [organizationId]
+            [organizationId, userId]
         );
 
         res.json({

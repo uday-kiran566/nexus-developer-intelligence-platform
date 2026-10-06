@@ -4,6 +4,8 @@ const {
     createTeam,
     getTeams,
     addTeamMember,
+    removeTeamMember,
+    deleteTeam,
     getTeamMembers
 } = require("../controllers/teamController");
 
@@ -30,5 +32,13 @@ router.get(
     authenticate,
     getTeamMembers
 );
+
+router.delete(
+    "/:teamId/members/:memberId",
+    authenticate,
+    removeTeamMember
+);
+
+router.delete("/:teamId", authenticate, deleteTeam);
 
 module.exports = router;

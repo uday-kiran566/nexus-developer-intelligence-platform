@@ -18,6 +18,14 @@ const authenticate = (req, res, next) => {
             process.env.JWT_SECRET
         );
 
+        if (!Number.isSafeInteger(Number(decoded.userId)) ||
+            Number(decoded.userId) <= 0) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid or expired token"
+            });
+        }
+
         req.user = decoded;
 
         next();

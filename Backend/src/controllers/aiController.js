@@ -20,7 +20,7 @@ const chat = async (req, res) => {
 
         const userId = req.user.userId;
 
-        if (!message || !message.trim()) {
+        if (typeof message !== "string" || !message.trim()) {
             return res.status(400).json({
                 success: false,
                 message: "Message is required"

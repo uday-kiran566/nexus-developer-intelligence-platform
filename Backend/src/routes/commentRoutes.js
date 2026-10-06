@@ -2,7 +2,9 @@ const express = require("express");
 
 const {
     addComment,
-    getTaskComments
+    getTaskComments,
+    updateComment,
+    deleteComment
 } = require("../controllers/commentController");
 
 const authenticate = require("../middleware/authMiddleware");
@@ -16,5 +18,8 @@ router.get(
     authenticate,
     getTaskComments
 );
+
+router.put("/:commentId", authenticate, updateComment);
+router.delete("/:commentId", authenticate, deleteComment);
 
 module.exports = router;

@@ -87,7 +87,7 @@ const storeKnowledge = async ({
 };
 
 
-// Index project + tasks
+// Index project, tasks, and comments
 const indexProject = async (projectId) => {
     const [projects] = await pool.query(
         `SELECT id, name, description, status
@@ -129,7 +129,28 @@ Status: ${project.status}
         [projectId]
     );
 
+    const [comments] = await pool.query(
+        `SELECT c.id, c.task_id, c.content
+         FROM comments c
+         JOIN tasks t
+           ON t.id = c.task_id
+         WHERE t.project_id = ?
+         ORDER BY c.id`,
+        [projectId]
+    );
+    const commentsByTask = new Map();
+
+    for (const comment of comments) {
+        const taskComments = commentsByTask.get(comment.task_id) || [];
+        taskComments.push(comment.content);
+        commentsByTask.set(comment.task_id, taskComments);
+    }
+
     for (const task of tasks) {
+        const taskComments = commentsByTask.get(task.id) || [];
+        const commentsContext = taskComments.length > 0
+            ? `\nComments:\n${taskComments.map((content) => `- ${content}`).join("\n")}`
+            : "";
         const taskContent = `
 Project: ${project.name}
 Task ID: ${task.id}
@@ -137,6 +158,7 @@ Task: ${task.title}
 Description: ${task.description || "No description"}
 Status: ${task.status}
 Priority: ${task.priority}
+${commentsContext}
 `.trim();
 
         await storeKnowledge({
@@ -151,7 +173,8 @@ Priority: ${task.priority}
         projectId: project.id,
         projectName: project.name,
         tasksIndexed: tasks.length,
-        totalChunks: tasks.length + 1
+        commentsIndexed: comments.length,
+        totalChunks: tasks.length + comments.length + 1
     };
 };
 

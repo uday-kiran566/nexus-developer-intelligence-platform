@@ -63,7 +63,7 @@ const getOrganizations = async (req, res) => {
         const userId = req.user.userId;
 
         const [organizations] = await pool.query(
-            `SELECT o.id, o.name, o.owner_id, o.created_at, om.role
+            `SELECT o.id, o.name, o.created_at, om.role
              FROM organizations o
              JOIN organization_members om
                ON o.id = om.organization_id

@@ -47,6 +47,13 @@ const createLabel = async (req, res) => {
             ]
         );
 
+        await pool.query(
+            `DELETE FROM knowledge_chunks
+             WHERE project_id = ?
+               AND source_type = 'PROJECT'`,
+            [project_id]
+        );
+
         res.status(201).json({
             success: true,
             message: "Label created successfully",
@@ -91,15 +98,23 @@ const getProjectLabels = async (req, res) => {
 
         const [labels] = await pool.query(
             `SELECT
-                id,
-                organization_id,
-                name,
-                color,
-                created_at
-             FROM labels
-             WHERE organization_id = ?
-             ORDER BY name`,
-            [organizationId]
+                l.id,
+                l.organization_id,
+                l.name,
+                l.color,
+                l.created_at
+             FROM labels l
+             WHERE l.organization_id = ?
+               AND EXISTS (
+                    SELECT 1
+                    FROM projects p
+                    JOIN project_members pm
+                      ON pm.project_id = p.id
+                    WHERE p.organization_id = l.organization_id
+                      AND pm.user_id = ?
+               )
+             ORDER BY l.name`,
+            [organizationId, userId]
         );
 
         res.json({
@@ -212,12 +227,22 @@ const addLabelToTask = async (req, res) => {
             });
         }
 
-        await pool.query(
-            `INSERT INTO task_labels
-             (task_id, label_id)
-             VALUES (?, ?)`,
-            [task_id, label_id]
-        );
+        try {
+            await pool.query(
+                `INSERT INTO task_labels
+                 (task_id, label_id)
+                 VALUES (?, ?)`,
+                [task_id, label_id]
+            );
+        } catch (error) {
+            if (error.code === "ER_DUP_ENTRY") {
+                return res.status(409).json({
+                    success: false,
+                    message: "Label is already attached to this task"
+                });
+            }
+            throw error;
+        }
 
         res.status(201).json({
             success: true,
@@ -234,10 +259,171 @@ const addLabelToTask = async (req, res) => {
     }
 };
 
+const removeLabelFromTask = async (req, res) => {
+    try {
+        const { taskId, labelId } = req.params;
+        const userId = req.user.userId;
+
+        const [authorizedLinks] = await pool.query(
+            `SELECT tl.task_id
+             FROM task_labels tl
+             JOIN tasks t
+               ON t.id = tl.task_id
+             JOIN projects p
+               ON p.id = t.project_id
+             JOIN project_members pm
+               ON pm.project_id = p.id
+             JOIN labels l
+               ON l.id = tl.label_id
+              AND l.organization_id = p.organization_id
+             WHERE tl.task_id = ?
+               AND tl.label_id = ?
+               AND pm.user_id = ?`,
+            [taskId, labelId, userId]
+        );
+
+        if (authorizedLinks.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Task label not found or access denied"
+            });
+        }
+
+        await pool.query(
+            "DELETE FROM task_labels WHERE task_id = ? AND label_id = ?",
+            [taskId, labelId]
+        );
+
+        res.json({
+            success: true,
+            message: "Label removed from task"
+        });
+    } catch (error) {
+        console.error("REMOVE LABEL ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to remove label from task"
+        });
+    }
+};
+
+const updateLabel = async (req, res) => {
+    try {
+        const { labelId } = req.params;
+        const { name, color } = req.body;
+        const userId = req.user.userId;
+
+        if (typeof name !== "string" || !name.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Label name is required"
+            });
+        }
+
+        const [labels] = await pool.query(
+            `SELECT l.id
+             FROM labels l
+             JOIN organization_members om
+               ON om.organization_id = l.organization_id
+             WHERE l.id = ?
+               AND om.user_id = ?
+               AND om.role IN ('ADMIN', 'OWNER')`,
+            [labelId, userId]
+        );
+
+        if (labels.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Label not found or access denied"
+            });
+        }
+
+        await pool.query(
+            `UPDATE labels
+             SET name = ?, color = ?
+             WHERE id = ?`,
+            [name.trim(), color || "#6366f1", labelId]
+        );
+
+        res.json({
+            success: true,
+            message: "Label updated successfully"
+        });
+    } catch (error) {
+        console.error("UPDATE LABEL ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update label"
+        });
+    }
+};
+
+const deleteLabel = async (req, res) => {
+    let connection;
+
+    try {
+        const { labelId } = req.params;
+        const userId = req.user.userId;
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [labels] = await connection.query(
+            `SELECT l.id
+             FROM labels l
+             JOIN organization_members om
+               ON om.organization_id = l.organization_id
+             WHERE l.id = ?
+               AND om.user_id = ?
+               AND om.role IN ('ADMIN', 'OWNER')
+             FOR UPDATE`,
+            [labelId, userId]
+        );
+
+        if (labels.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({
+                success: false,
+                message: "Label not found or access denied"
+            });
+        }
+
+        await connection.query(
+            "DELETE FROM task_labels WHERE label_id = ?",
+            [labelId]
+        );
+        await connection.query(
+            "DELETE FROM labels WHERE id = ?",
+            [labelId]
+        );
+        await connection.commit();
+
+        res.json({
+            success: true,
+            message: "Label deleted successfully"
+        });
+    } catch (error) {
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error("DELETE LABEL ERROR:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete label"
+        });
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};
+
 
 module.exports = {
     createLabel,
     getProjectLabels,
     getTaskLabels,
-    addLabelToTask
+    addLabelToTask,
+    removeLabelFromTask,
+    updateLabel,
+    deleteLabel
 };
