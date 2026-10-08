@@ -1,6 +1,6 @@
 # NEXUS — Developer Intelligence Platform
 
-**Live Demo:** https://nexus-developer-platform.netlify.app
+**Live Demo:** https://nexus-frontend-6y6j.onrender.com/login
 
 NEXUS is a full-stack developer intelligence platform for managing organizations, projects, tasks, teams, collaboration, activity, notifications, and AI-powered developer workflows.
 
