@@ -1,93 +1,202 @@
-# NEXUS — Developer Intelligence Platform
+NEXUS — Developer Intelligence Platform
 
-**Live Demo:** https://nexus-frontend-6y6j.onrender.com/login
+<p align="center">
+  <strong>A modern full-stack workspace for developers, teams, projects, tasks, collaboration, and AI-powered workflows.</strong>
+</p><p align="center">
+  <a href="https://nexus-frontend-6y6j.onrender.com/login">🚀 Live Demo</a>
+  &nbsp;•&nbsp;
+  <a href="https://github.com/">💻 Source Code</a>
+</p>---
 
-NEXUS is a full-stack developer intelligence platform for managing organizations, projects, tasks, teams, collaboration, activity, notifications, and AI-powered developer workflows.
+⚡ What is NEXUS?
 
-## 🚀 Features
+NEXUS is a full-stack Developer Intelligence Platform built to centralize the everyday workflow of software development.
 
-* JWT-based authentication
-* Organization management
-* Project management
-* Task creation and tracking
-* Teams and team members
-* Comments and collaboration
-* Labels and task dependencies
-* Activity tracking
-* Notifications
-* AI-powered developer workflows
-* Knowledge/RAG data support
-* Real-time dashboard statistics
+Instead of managing projects, tasks, teams, collaboration, activity, and developer assistance across multiple tools, NEXUS brings them together into one structured workspace.
 
-## 🛠️ Tech Stack
+The platform combines:
 
-**Frontend**
+Project Management + Team Collaboration + Developer Workflows + AI
 
-* React.js
-* Vite
-* JavaScript
-* HTML5
-* CSS3
+---
 
-**Backend**
+🎯 Core Capabilities
 
-* Node.js
-* Express.js
-* REST APIs
-* JWT authentication
-* bcryptjs
+Module| Capabilities
+🔐 Authentication| JWT authentication, protected routes, secure password hashing
+🏢 Organizations| Organizations, members, workspace management
+📁 Projects| Project creation, members, project workflows
+✅ Tasks| Tasks, descriptions, priorities, status, labels, dependencies
+👥 Teams| Teams, members, collaboration
+💬 Collaboration| Comments and task-level collaboration
+📊 Activity| User and project activity tracking
+🔔 Notifications| Centralized notification system
+🤖 AI| Gemini-powered developer assistance
+🧠 RAG| Knowledge chunks, embeddings and retrieval
+📈 Dashboard| Personalized, database-driven statistics
 
-**Database**
+---
 
-* TiDB Cloud
-* MySQL-compatible SQL database
+🖥️ Product Experience
 
-**AI**
+🔐 Authentication
 
-* Google Gemini API
-* Gemini embeddings
-* RAG-based knowledge search
+Secure user authentication with JWT-based authorization and protected backend APIs.
 
-**Deployment**
+📊 Personalized Dashboard
 
-* Netlify
-* Netlify Functions
-* GitHub
+A user-focused dashboard displaying relevant organizations, projects, tasks and activity rather than global application data.
 
-## 🏗️ Architecture
+🏢 Organization → Project → Task
 
-```text
-React + Vite
-      ↓
-Netlify
-      ↓
-Express API / Netlify Functions
-      ↓
-TiDB Cloud
-      ↓
-Google Gemini API
-```
+NEXUS follows a structured hierarchy:
 
-## 📊 Current Production Environment
+User
+ │
+ └── Organization
+       │
+       ├── Teams
+       │
+       └── Projects
+             │
+             └── Tasks
+                   │
+                   ├── Labels
+                   ├── Dependencies
+                   └── Comments
 
-The application is deployed and connected to a cloud database and production AI services.
+🤖 AI Developer Workspace
 
-Production URL:
+The AI module provides developer-focused assistance using Google Gemini and a knowledge-retrieval workflow.
 
-https://nexus-developer-platform.netlify.app
+---
 
-## 🔐 Authentication
+🧠 AI + RAG Architecture
 
-NEXUS uses JWT-based authentication with protected API routes and secure password hashing.
+                  User Question
+                       │
+                       ▼
+              ┌─────────────────┐
+              │   AI Request    │
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Knowledge Search│
+              │   + Embeddings  │
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Relevant Context│
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Google Gemini   │
+              └────────┬────────┘
+                       │
+                       ▼
+              Context-Aware Answer
 
-## 🧠 AI Workflow
+---
 
-The AI module uses Google Gemini for developer-focused responses and supports a knowledge-search workflow using embeddings and stored knowledge chunks.
+🏗️ System Architecture
 
-## 📁 Project Structure
+┌─────────────────────────────────────────┐
+│             React + Vite                │
+│               Frontend                  │
+└───────────────────┬─────────────────────┘
+                    │
+                    │ REST API
+                    ▼
+┌─────────────────────────────────────────┐
+│          Node.js + Express              │
+│              Backend API                │
+└───────────────┬─────────────┬───────────┘
+                │             │
+                ▼             ▼
+      ┌────────────────┐  ┌────────────────┐
+      │   TiDB Cloud   │  │ Google Gemini  │
+      │ MySQL Database │  │   AI Services  │
+      └────────────────┘  └────────────────┘
 
-```text
+---
+
+🛠️ Technology Stack
+
+Frontend
+
+"React" (https://img.shields.io/badge/React.js-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+"Vite" (https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+"JavaScript" (https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+"HTML5" (https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+"CSS3" (https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+
+Backend
+
+"Node.js" (https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
+"Express" (https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+"JWT" (https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+
+Database & AI
+
+"MySQL" (https://img.shields.io/badge/MySQL--Compatible-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+"Google Gemini" (https://img.shields.io/badge/Google%20Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)
+
+Development
+
+"Git" (https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
+"GitHub" (https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
+
+---
+
+🔐 Security
+
+NEXUS implements:
+
+- JWT-based authentication
+- Protected API endpoints
+- bcrypt password hashing
+- Authenticated user context
+- User-specific data access
+- Environment variables for sensitive credentials
+- Separation between frontend and backend services
+
+«API keys, database credentials and other sensitive configuration are not stored directly in the source code.»
+
+---
+
+🗄️ Database Design
+
+NEXUS uses TiDB Cloud, a MySQL-compatible distributed SQL database.
+
+The relational model contains entities for:
+
+Users
+Organizations
+Organization Members
+Projects
+Project Members
+Teams
+Team Members
+Tasks
+Task Dependencies
+Task Labels
+Labels
+Comments
+Notifications
+Activity Logs
+Knowledge Chunks
+
+This structure enables relationships between users, organizations, teams, projects and tasks while keeping application data organized.
+
+---
+
+📂 Project Structure
+
 NEXUS/
+│
 ├── Backend/
 │   ├── src/
 │   │   ├── controllers/
@@ -95,8 +204,10 @@ NEXUS/
 │   │   ├── routes/
 │   │   ├── services/
 │   │   └── server.js
+│   │
 │   ├── netlify/
 │   │   └── functions/
+│   │
 │   └── package.json
 │
 ├── Frontend/
@@ -105,16 +216,100 @@ NEXUS/
 │   └── package.json
 │
 ├── database/
+│
 ├── netlify.toml
 └── README.md
-```
 
-## 🌐 Deployment
+---
 
-The frontend and Express API are deployed through Netlify, with TiDB Cloud providing the production SQL database.
+🚀 Application Workflow
 
-## 👨‍💻 Author
+Register / Login
+       │
+       ▼
+Personalized Dashboard
+       │
+       ▼
+Create Organization
+       │
+       ▼
+Create Project
+       │
+       ▼
+Create & Assign Tasks
+       │
+       ▼
+Collaborate with Team
+       │
+       ▼
+Track Activity
+       │
+       ▼
+Receive Notifications
+       │
+       ▼
+Use AI Developer Assistance
 
-**Uday Kiran**
+---
 
-B.Tech — Computer Science and Engineering
+🌐 Live Application
+
+<p align="center">🚀 Try NEXUS
+
+<a href="https://nexus-frontend-6y6j.onrender.com/login">
+  <strong>Open Live Demo →</strong>
+</a></p>Live URL:
+https://nexus-frontend-6y6j.onrender.com/login
+
+---
+
+📈 Development Highlights
+
+Building NEXUS provided hands-on experience with:
+
+- Full-stack web application architecture
+- React component-based development
+- REST API design
+- JWT authentication and authorization
+- Relational database modeling
+- Cloud database integration
+- AI API integration
+- Embeddings and RAG workflows
+- Backend security
+- Production deployment
+- Responsive UI development
+- Git/GitHub development workflows
+
+---
+
+🔮 Future Improvements
+
+Potential future enhancements include:
+
+- Real-time collaboration
+- WebSocket-based notifications
+- Advanced analytics
+- Role-based permissions
+- AI task generation
+- AI project planning
+- GitHub repository integration
+- Developer productivity insights
+- Automated workflow integrations
+
+---
+
+👨‍💻 Author
+
+Uday Kiran
+
+B.Tech — Computer Science & Engineering
+
+Full-Stack Developer | AI-Integrated Applications
+
+---
+
+<p align="center">⭐ If you find NEXUS interesting, consider starring the repository.
+
+<strong>Built with React, Node.js, Express, MySQL-compatible SQL, and AI.</strong>
+
+</p>
